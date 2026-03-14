@@ -111,7 +111,9 @@ export default [
         parser: '@typescript-eslint/parser',
       },
       globals: {
+        document: 'readonly',
         HTMLElement: 'readonly',
+        KeyboardEvent: 'readonly',
         PointerEvent: 'readonly',
         WheelEvent: 'readonly',
         setTimeout: 'readonly',

@@ -30,6 +30,7 @@ interface Canvas {
 }
 
 const canvas: Ref<Canvas | null> = ref(null);
+const selectedObjectId: Ref<string | null> = ref(null);
 
 let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -122,6 +123,17 @@ function removeObject(id: string): void {
   canvas.value.objects = canvas.value.objects.filter((o) => o.id !== id);
 }
 
+function selectObject(id: string | null): void {
+  selectedObjectId.value = id;
+}
+
+function deleteSelectedObject(): void {
+  if (selectedObjectId.value) {
+    removeObject(selectedObjectId.value);
+    selectedObjectId.value = null;
+  }
+}
+
 function updateCamera(camera_: Camera): void {
   if (!canvas.value) return;
   canvas.value.camera = camera_;
@@ -129,6 +141,7 @@ function updateCamera(camera_: Camera): void {
 
 function useCanvas(): {
   canvas: Ref<Canvas | null>;
+  selectedObjectId: Ref<string | null>;
   createCanvas: (title: string) => Promise<Canvas>;
   fetchCanvas: (id: string) => Promise<Canvas | null>;
   getLastOpenedId: () => Promise<string | null>;
@@ -141,10 +154,13 @@ function useCanvas(): {
     data: Partial<Omit<DesignObject, 'id' | 'createdAt'>>,
   ) => void;
   removeObject: (id: string) => void;
+  selectObject: (id: string | null) => void;
+  deleteSelectedObject: () => void;
   updateCamera: (camera: Camera) => void;
 } {
   return {
     canvas,
+    selectedObjectId,
     createCanvas,
     fetchCanvas,
     getLastOpenedId,
@@ -152,6 +168,8 @@ function useCanvas(): {
     addObject,
     updateObject,
     removeObject,
+    selectObject,
+    deleteSelectedObject,
     updateCamera,
   };
 }

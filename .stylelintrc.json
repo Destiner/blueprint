@@ -5,6 +5,9 @@
     "stylelint-config-property-sort-order-smacss"
   ],
   "rules": {
+    "declaration-property-value-no-unknown": [true, {
+      "ignoreProperties": { "cursor": "/.*/" }
+    }],
     "media-feature-name-allowed-list": ["width", "prefers-color-scheme"]
   }
 }
