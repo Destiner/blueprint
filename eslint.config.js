@@ -109,6 +109,12 @@ export default [
       parserOptions: {
         parser: '@typescript-eslint/parser',
       },
+      globals: {
+        HTMLElement: 'readonly',
+        PointerEvent: 'readonly',
+        WheelEvent: 'readonly',
+        setTimeout: 'readonly',
+      },
     },
   },
   {
