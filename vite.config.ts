@@ -11,4 +11,9 @@ export default defineConfig({
     vue(),
     VueDevTools(),
   ],
+  server: {
+    proxy: {
+      '/api': 'http://localhost:39485',
+    },
+  },
 });

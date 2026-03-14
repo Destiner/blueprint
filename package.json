@@ -18,12 +18,14 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite",
+    "dev": "concurrently \"vite\" \"bun run --watch server/index.ts\"",
+    "dev:client": "vite",
+    "dev:server": "bun run --watch server/index.ts",
     "lint": "bun run lint:prettier && bun run lint:eslint && bun run lint:stylelint",
     "lint:prettier": "prettier -c \"src/**/*.{json,js,ts,vue}\"",
     "lint:eslint": "eslint \"src/**/*.{js,ts,vue}\"",
     "lint:stylelint": "stylelint \"src/**/*.{css,vue}\"",
-    "typecheck": "tsc --noEmit && vue-tsc --noEmit"
+    "typecheck": "tsc --noEmit && vue-tsc --noEmit && tsc --noEmit -p server/tsconfig.json"
   },
   "dependencies": {
     "@phosphor-icons/vue": "^2.2.1",
@@ -31,6 +33,8 @@
     "vue-router": "^5.0.3"
   },
   "devDependencies": {
+    "bun-types": "^1.2.9",
+    "concurrently": "^9.1.2",
     "@eslint/js": "^10.0.1",
     "@vitejs/plugin-vue": "^6.0.4",
     "@vue/compiler-sfc": "^3.5.29",

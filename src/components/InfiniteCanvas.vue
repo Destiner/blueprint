@@ -13,11 +13,33 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+
+import type { Camera } from '@/composables/useCanvas';
+
+const props = defineProps<{
+  initialCamera?: Camera;
+}>();
+
+const emit = defineEmits<{
+  'camera-change': [camera: Camera];
+}>();
 
 const viewport = ref<HTMLElement | null>(null);
 
 const camera = reactive({ x: 0, y: 0, zoom: 1 });
+
+watch(
+  () => props.initialCamera,
+  (val) => {
+    if (val) {
+      camera.x = val.x;
+      camera.y = val.y;
+      camera.zoom = val.zoom;
+    }
+  },
+  { immediate: true },
+);
 
 const worldStyle = computed(() => ({
   transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})`,
@@ -42,6 +64,8 @@ function onWheel(e: WheelEvent): void {
     camera.x -= e.deltaX;
     camera.y -= e.deltaY;
   }
+
+  emit('camera-change', { x: camera.x, y: camera.y, zoom: camera.zoom });
 }
 
 onMounted(() => {

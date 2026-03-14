@@ -5,6 +5,7 @@ import { configs as tsConfigs, parser as tsParser } from 'typescript-eslint';
 import parserVue from 'vue-eslint-parser';
 
 export default [
+  { ignores: ['server/**'] },
   js.configs.recommended,
   eslintPluginImportX.flatConfigs.recommended,
   eslintPluginImportX.flatConfigs.typescript,

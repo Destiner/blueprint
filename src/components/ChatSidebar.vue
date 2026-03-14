@@ -32,10 +32,14 @@
 import { PhPaperPlaneTilt } from '@phosphor-icons/vue';
 import { ref } from 'vue';
 
+import useCanvas from '@/composables/useCanvas';
+
 interface Message {
   role: 'user' | 'assistant';
   text: string;
 }
+
+const { addObject, canvas } = useCanvas();
 
 const messages = ref<Message[]>([]);
 const input = ref('');
@@ -49,9 +53,17 @@ const MOCK_RESPONSES = [
   "Here's a testimonial carousel layout.",
 ];
 
-function mockResponse(): string {
+const MOCK_HTML = [
+  '<div style="padding:24px;text-align:center"><h1 style="font-size:32px;margin-bottom:16px">Welcome</h1><button style="padding:10px 24px;background:#007aff;color:#fff;border:none;border-radius:8px;font-size:16px">Get Started</button></div>',
+  '<div style="display:flex;gap:12px;padding:16px"><div style="flex:1;padding:16px;border:1px solid #e0e0e0;border-radius:8px"><h3>Feature 1</h3><p>Description</p></div><div style="flex:1;padding:16px;border:1px solid #e0e0e0;border-radius:8px"><h3>Feature 2</h3><p>Description</p></div><div style="flex:1;padding:16px;border:1px solid #e0e0e0;border-radius:8px"><h3>Feature 3</h3><p>Description</p></div></div>',
+  '<nav style="display:flex;align-items:center;justify-content:space-between;padding:12px 24px;border-bottom:1px solid #e0e0e0"><strong>Logo</strong><div style="display:flex;gap:16px"><a href="#">Home</a><a href="#">About</a><a href="#">Contact</a></div></nav>',
+  '<footer style="padding:24px;background:#333;color:#fff;text-align:center"><p>&copy; 2026 Company</p></footer>',
+  '<div style="padding:24px;text-align:center;background:#f9f9f9;border-radius:8px"><p style="font-style:italic;font-size:18px">"This product changed my life!"</p><p style="color:#666;margin-top:8px">— Happy Customer</p></div>',
+];
+
+function mockResponse(): { text: string; html: string } {
   const index = Math.floor(Math.random() * MOCK_RESPONSES.length);
-  return MOCK_RESPONSES[index]!;
+  return { text: MOCK_RESPONSES[index]!, html: MOCK_HTML[index]! };
 }
 
 async function send(): Promise<void> {
@@ -64,7 +76,20 @@ async function send(): Promise<void> {
 
   await new Promise((r) => setTimeout(r, 800 + Math.random() * 1200));
 
-  messages.value.push({ role: 'assistant', text: mockResponse() });
+  const response = mockResponse();
+  messages.value.push({ role: 'assistant', text: response.text });
+
+  const objectCount = canvas.value?.objects.length ?? 0;
+  addObject({
+    title: text,
+    content: response.html,
+    x: 100 + objectCount * 50,
+    y: 100 + objectCount * 50,
+    width: 400,
+    height: 300,
+    zIndex: objectCount + 1,
+  });
+
   loading.value = false;
 }
 </script>
