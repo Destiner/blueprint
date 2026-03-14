@@ -1,0 +1,53 @@
+{
+  "name": "starter-app",
+  "version": "1.0.0",
+  "description": "Starter Vue app",
+  "author": {
+    "name": "Timur Badretdinov",
+    "url": "https://github.com/Destiner"
+  },
+  "keywords": [
+    "vue",
+    "starter"
+  ],
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/Destiner/starter-app.git"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "lint": "bun run lint:prettier && bun run lint:eslint && bun run lint:stylelint",
+    "lint:prettier": "prettier -c \"src/**/*.{json,js,ts,vue}\"",
+    "lint:eslint": "eslint \"src/**/*.{js,ts,vue}\"",
+    "lint:stylelint": "stylelint \"src/**/*.{css,vue}\"",
+    "typecheck": "tsc --noEmit && vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "vue": "^3.5.29",
+    "vue-router": "^5.0.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@vitejs/plugin-vue": "^6.0.4",
+    "@vue/compiler-sfc": "^3.5.29",
+    "eslint": "^10.0.3",
+    "eslint-import-resolver-typescript": "^4.4.4",
+    "eslint-plugin-import-x": "^4.16.1",
+    "eslint-plugin-vue": "^10.8.0",
+    "prettier": "^3.8.1",
+    "stylelint": "^17.4.0",
+    "stylelint-config-property-sort-order-smacss": "^11.1.0",
+    "stylelint-config-recommended-vue": "^1.6.1",
+    "stylelint-config-standard": "^40.0.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "^8.56.1",
+    "vite": "^7.3.1",
+    "vite-plugin-vue-devtools": "^8.0.7",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vue-eslint-parser": "^10.4.0",
+    "vue-tsc": "^3.2.5"
+  }
+}
