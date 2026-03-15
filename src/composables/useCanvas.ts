@@ -31,6 +31,7 @@ interface Canvas {
 
 const canvas: Ref<Canvas | null> = ref(null);
 const selectedObjectId: Ref<string | null> = ref(null);
+const selectedElementSelector: Ref<string | null> = ref(null);
 
 let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -125,6 +126,11 @@ function removeObject(id: string): void {
 
 function selectObject(id: string | null): void {
   selectedObjectId.value = id;
+  selectedElementSelector.value = null;
+}
+
+function selectElement(selector: string | null): void {
+  selectedElementSelector.value = selector;
 }
 
 function deleteSelectedObject(): void {
@@ -142,6 +148,7 @@ function updateCamera(camera_: Camera): void {
 function useCanvas(): {
   canvas: Ref<Canvas | null>;
   selectedObjectId: Ref<string | null>;
+  selectedElementSelector: Ref<string | null>;
   createCanvas: (title: string) => Promise<Canvas>;
   fetchCanvas: (id: string) => Promise<Canvas | null>;
   getLastOpenedId: () => Promise<string | null>;
@@ -155,12 +162,14 @@ function useCanvas(): {
   ) => void;
   removeObject: (id: string) => void;
   selectObject: (id: string | null) => void;
+  selectElement: (selector: string | null) => void;
   deleteSelectedObject: () => void;
   updateCamera: (camera: Camera) => void;
 } {
   return {
     canvas,
     selectedObjectId,
+    selectedElementSelector,
     createCanvas,
     fetchCanvas,
     getLastOpenedId,
@@ -169,6 +178,7 @@ function useCanvas(): {
     updateObject,
     removeObject,
     selectObject,
+    selectElement,
     deleteSelectedObject,
     updateCamera,
   };

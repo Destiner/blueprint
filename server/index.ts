@@ -68,11 +68,13 @@ Bun.serve({
         const body = (await req.json()) as {
           messages: ChatMessage[];
           selectedObjectId?: string;
+          selectedElementSelector?: string;
         };
         const result = await runAgent(
           id,
           body.messages,
           body.selectedObjectId ?? null,
+          body.selectedElementSelector ?? null,
         );
         return json(result);
       }

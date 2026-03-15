@@ -53,7 +53,8 @@ interface Message {
   error?: boolean;
 }
 
-const { canvas, selectedObjectId, fetchCanvas } = useCanvas();
+const { canvas, selectedObjectId, selectedElementSelector, fetchCanvas } =
+  useCanvas();
 
 const messages = ref<Message[]>([]);
 const input = ref('');
@@ -77,6 +78,7 @@ async function send(): Promise<void> {
       body: JSON.stringify({
         messages: messages.value.filter((m) => !m.error),
         selectedObjectId: selectedObjectId.value,
+        selectedElementSelector: selectedElementSelector.value,
       }),
     });
 

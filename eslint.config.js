@@ -111,10 +111,13 @@ export default [
         parser: '@typescript-eslint/parser',
       },
       globals: {
+        Array: 'readonly',
         document: 'readonly',
+        Element: 'readonly',
         fetch: 'readonly',
         HTMLElement: 'readonly',
         KeyboardEvent: 'readonly',
+        MouseEvent: 'readonly',
         PointerEvent: 'readonly',
         WheelEvent: 'readonly',
         setTimeout: 'readonly',

@@ -9,7 +9,11 @@
       {{ object.title }}
     </div>
     <div
+      ref="bodyRef"
       class="design-card-body"
+      @click.stop="onBodyClick"
+      @pointerover="onBodyPointerOver"
+      @pointerout="onBodyPointerOut"
       v-html="object.content"
     ></div>
     <template v-if="selected">
@@ -25,20 +29,23 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 import type { DesignObject } from '@/composables/useCanvas';
+import buildSelectorPath from '@/utils/selectorPath';
 
 type ResizeDirection = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 
 const props = defineProps<{
   object: DesignObject;
   selected: boolean;
+  selectedElementSelector: string | null;
   zoom: number;
 }>();
 
 const emit = defineEmits<{
   select: [];
+  'select-element': [selector: string | null];
   move: [dx: number, dy: number];
   resize: [dw: number, dh: number, dx: number, dy: number];
 }>();
@@ -54,11 +61,17 @@ const resizeDirections: ResizeDirection[] = [
   'w',
 ];
 
+const bodyRef = ref<HTMLElement | null>(null);
 const dragging = ref(false);
+const wasDragged = ref(false);
 const resizing = ref(false);
 const resizeDir = ref<ResizeDirection>('se');
 const lastX = ref(0);
 const lastY = ref(0);
+const startX = ref(0);
+const startY = ref(0);
+const hoveredEl = ref<Element | null>(null);
+const selectedEl = ref<Element | null>(null);
 
 const cardStyle = computed(() => ({
   left: `${props.object.x}px`,
@@ -71,9 +84,14 @@ const cardStyle = computed(() => ({
 function onCardPointerDown(e: PointerEvent): void {
   emit('select');
   dragging.value = true;
+  wasDragged.value = false;
   lastX.value = e.clientX;
   lastY.value = e.clientY;
-  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  startX.value = e.clientX;
+  startY.value = e.clientY;
+  if (!props.selected) {
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
   document.addEventListener('pointermove', onPointerMove);
   document.addEventListener('pointerup', onPointerUp);
 }
@@ -92,6 +110,14 @@ function onPointerMove(e: PointerEvent): void {
   const dy = (e.clientY - lastY.value) / props.zoom;
   lastX.value = e.clientX;
   lastY.value = e.clientY;
+
+  if (
+    !wasDragged.value &&
+    (Math.abs(e.clientX - startX.value) > 3 ||
+      Math.abs(e.clientY - startY.value) > 3)
+  ) {
+    wasDragged.value = true;
+  }
 
   if (dragging.value) {
     emit('move', dx, dy);
@@ -123,6 +149,76 @@ function onPointerUp(): void {
   document.removeEventListener('pointermove', onPointerMove);
   document.removeEventListener('pointerup', onPointerUp);
 }
+
+function onBodyClick(e: MouseEvent): void {
+  if (!props.selected || wasDragged.value) return;
+  const target = e.target as Element;
+  const body = bodyRef.value;
+  if (!body) return;
+  if (target === body) {
+    emit('select-element', null);
+    return;
+  }
+  const selector = buildSelectorPath(body, target);
+  emit('select-element', selector);
+}
+
+function onBodyPointerOver(e: PointerEvent): void {
+  if (!props.selected) return;
+  const target = e.target as Element;
+  const body = bodyRef.value;
+  if (!body || target === body) return;
+  if (hoveredEl.value && hoveredEl.value !== selectedEl.value) {
+    (hoveredEl.value as HTMLElement).style.outline = '';
+  }
+  hoveredEl.value = target;
+  if (target !== selectedEl.value) {
+    (target as HTMLElement).style.outline = '2px solid rgba(0,122,255,0.3)';
+  }
+}
+
+function onBodyPointerOut(e: PointerEvent): void {
+  if (!props.selected) return;
+  const target = e.target as Element;
+  if (target !== selectedEl.value) {
+    (target as HTMLElement).style.outline = '';
+  }
+  if (hoveredEl.value === target) {
+    hoveredEl.value = null;
+  }
+}
+
+function applySelectionHighlight(selector: string | null): void {
+  if (selectedEl.value) {
+    (selectedEl.value as HTMLElement).style.outline = '';
+    selectedEl.value = null;
+  }
+  if (!selector || !bodyRef.value) return;
+  const el = bodyRef.value.querySelector(selector);
+  if (el) {
+    (el as HTMLElement).style.outline = '2px dashed #007aff';
+    selectedEl.value = el;
+  } else {
+    emit('select-element', null);
+  }
+}
+
+watch(
+  () => props.selectedElementSelector,
+  (selector) => applySelectionHighlight(selector),
+);
+
+watch(
+  () => props.object.content,
+  () => {
+    if (props.selectedElementSelector) {
+      setTimeout(
+        () => applySelectionHighlight(props.selectedElementSelector),
+        0,
+      );
+    }
+  },
+);
 </script>
 
 <style scoped>
@@ -157,8 +253,8 @@ function onPointerUp(): void {
 
 .design-card-body {
   flex: 1;
-  background: #fff;
   overflow: hidden;
+  background: #fff;
 }
 
 .design-card-body :deep(> *:first-child) {

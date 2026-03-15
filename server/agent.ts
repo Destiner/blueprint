@@ -7,7 +7,10 @@ interface ChatMessage {
   text: string;
 }
 
-function buildSystemPrompt(selectedObjectId: string | null): string {
+function buildSystemPrompt(
+  selectedObjectId: string | null,
+  selectedElementSelector: string | null,
+): string {
   let prompt = `You are a talented design assistant for Blueprint, a visual design tool with an infinite canvas.
 
 ## Workflow
@@ -29,6 +32,13 @@ Respond briefly describing what you did.`;
     prompt += `\n\nThe user currently has object "${selectedObjectId}" selected. When they say "this", "it", "the selected one", etc., they are referring to this object.`;
   }
 
+  if (selectedObjectId && selectedElementSelector) {
+    prompt += `\n\nThe user has selected a specific element inside object "${selectedObjectId}".
+CSS selector (relative to the object's root HTML element): ${selectedElementSelector}
+When the user says "this", "this element", etc., they mean the element at this selector.
+Use get_object to retrieve the HTML, locate the element matching the selector, and modify only that element.`;
+  }
+
   return prompt;
 }
 
@@ -46,8 +56,9 @@ async function runAgent(
   canvasId: string,
   messages: ChatMessage[],
   selectedObjectId: string | null = null,
+  selectedElementSelector: string | null = null,
 ): Promise<AgentResult> {
-  const systemPrompt = buildSystemPrompt(selectedObjectId);
+  const systemPrompt = buildSystemPrompt(selectedObjectId, selectedElementSelector);
   const userPrompt = buildUserPrompt(messages);
 
   const configId = crypto.randomUUID();

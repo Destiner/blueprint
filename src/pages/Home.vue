@@ -11,8 +11,12 @@
         :key="obj.id"
         :object="obj"
         :selected="selectedObjectId === obj.id"
+        :selected-element-selector="
+          selectedObjectId === obj.id ? selectedElementSelector : null
+        "
         :zoom="currentZoom"
         @select="() => selectObject(obj.id)"
+        @select-element="selectElement"
         @move="(dx, dy) => onMoveObject(obj.id, dx, dy)"
         @resize="(dw, dh, dx, dy) => onResizeObject(obj.id, dw, dh, dx, dy)"
       />
@@ -33,10 +37,12 @@ import type { Camera } from '@/composables/useCanvas';
 const {
   canvas,
   selectedObjectId,
+  selectedElementSelector,
   createCanvas,
   fetchCanvas,
   getLastOpenedId,
   selectObject,
+  selectElement,
   deleteSelectedObject,
   updateObject,
   updateCamera,
@@ -45,6 +51,7 @@ const {
 const currentZoom = ref(1);
 
 function onDeselect(): void {
+  selectElement(null);
   selectObject(null);
 }
 
@@ -81,6 +88,14 @@ function onResizeObject(
 }
 
 function onKeyDown(e: KeyboardEvent): void {
+  if (e.key === 'Escape') {
+    if (selectedElementSelector.value) {
+      selectElement(null);
+    } else if (selectedObjectId.value) {
+      selectObject(null);
+    }
+    return;
+  }
   if (e.key === 'Delete' || e.key === 'Backspace') {
     const tag = (e.target as HTMLElement).tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA') return;

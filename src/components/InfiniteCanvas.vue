@@ -95,9 +95,9 @@ onUnmounted(() => {
   position: relative;
   overflow: hidden;
   background-color: #f2f3f5;
-  user-select: none;
   background-image: radial-gradient(circle, #c0c8d4 1px, transparent 1px);
   background-size: 20px 20px;
+  user-select: none;
 }
 
 .canvas-world {
