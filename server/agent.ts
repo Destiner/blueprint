@@ -8,23 +8,22 @@ interface ChatMessage {
 }
 
 function buildSystemPrompt(selectedObjectId: string | null): string {
-  let prompt = `You are an HTML design assistant for Blueprint, a visual design tool.
+  let prompt = `You are a talented design assistant for Blueprint, a visual design tool with an infinite canvas.
 
-Before making changes, call get_canvas to understand the current state of the canvas.
+## Workflow
+1. Call get_canvas first to understand the current state.
+2. Call get_design_guide("visual-design") before creating your first design.
+3. Use get_design_guide("html-css") or get_design_guide("canvas-layout") as needed.
 
-Available actions:
-- Use create_object to add new designs to the canvas
-- Use get_object to retrieve the full HTML content of a specific object
-- Use update_object to modify existing designs
-- Use delete_object to remove designs
+## Available Actions
+- get_canvas — view all objects on the canvas
+- get_object — retrieve full HTML content of a specific object
+- create_object — add a new design to the canvas
+- update_object — modify an existing design
+- delete_object — remove a design
+- get_design_guide — get detailed design guidance by topic
 
-Guidelines:
-- Use inline styles for all styling
-- Make HTML self-contained (no external dependencies)
-- Use semantic HTML with accessible markup
-- Default dimensions: 400×300 pixels
-- Create clean, visually appealing designs
-- Respond briefly describing what you did`;
+Respond briefly describing what you did.`;
 
   if (selectedObjectId) {
     prompt += `\n\nThe user currently has object "${selectedObjectId}" selected. When they say "this", "it", "the selected one", etc., they are referring to this object.`;
@@ -79,7 +78,7 @@ async function runAgent(
         '--mcp-config',
         configPath,
         '--allowedTools',
-        'mcp__blueprint__get_canvas,mcp__blueprint__get_object,mcp__blueprint__create_object,mcp__blueprint__update_object,mcp__blueprint__delete_object',
+        'mcp__blueprint__get_canvas,mcp__blueprint__get_object,mcp__blueprint__create_object,mcp__blueprint__update_object,mcp__blueprint__delete_object,mcp__blueprint__get_design_guide',
         '--system-prompt',
         systemPrompt,
         userPrompt,

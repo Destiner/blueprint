@@ -1,4 +1,11 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  unlinkSync,
+  writeFileSync,
+} from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
 
@@ -12,11 +19,23 @@ function ensureDir(): void {
   }
 }
 
-function list(): { id: string; title: string; createdAt: string; updatedAt: string }[] {
+function list(): {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+}[] {
   const files = readdirSync(STORAGE_DIR).filter((f) => f.endsWith('.json'));
   return files.map((f) => {
-    const data = JSON.parse(readFileSync(join(STORAGE_DIR, f), 'utf-8')) as Canvas;
-    return { id: data.id, title: data.title, createdAt: data.createdAt, updatedAt: data.updatedAt };
+    const data = JSON.parse(
+      readFileSync(join(STORAGE_DIR, f), 'utf-8'),
+    ) as Canvas;
+    return {
+      id: data.id,
+      title: data.title,
+      createdAt: data.createdAt,
+      updatedAt: data.updatedAt,
+    };
   });
 }
 
@@ -27,7 +46,10 @@ function get(id: string): Canvas | null {
 }
 
 function save(canvas: Canvas): void {
-  writeFileSync(join(STORAGE_DIR, `${canvas.id}.json`), JSON.stringify(canvas, null, 2));
+  writeFileSync(
+    join(STORAGE_DIR, `${canvas.id}.json`),
+    JSON.stringify(canvas, null, 2),
+  );
 }
 
 function remove(id: string): boolean {

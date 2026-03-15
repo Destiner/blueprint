@@ -127,7 +127,9 @@ function onPointerUp(): void {
 
 <style scoped>
 .design-card {
+  display: flex;
   position: absolute;
+  flex-direction: column;
   border: 1px solid #e0e0e0;
   border-radius: 8px 8px 0 0;
   background: #fff;
@@ -154,8 +156,14 @@ function onPointerUp(): void {
 }
 
 .design-card-body {
-  padding: 8px;
+  flex: 1;
+  background: #fff;
   overflow: hidden;
+}
+
+.design-card-body :deep(> *:first-child) {
+  width: 100%;
+  height: 100%;
 }
 
 .resize-handle {
