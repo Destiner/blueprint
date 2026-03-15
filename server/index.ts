@@ -1,4 +1,14 @@
-import { ensureDir, get, getMeta, list, remove, save, saveMeta } from './storage';
+import { runAgent } from './agent';
+import type { ChatMessage } from './agent';
+import {
+  ensureDir,
+  get,
+  getMeta,
+  list,
+  remove,
+  save,
+  saveMeta,
+} from './storage';
 import type { Canvas, Meta } from './types';
 
 ensureDir();
@@ -48,6 +58,23 @@ Bun.serve({
         };
         save(canvas);
         return json(canvas, 201);
+      }
+
+      const chatMatch = pathname.match(/^\/api\/canvases\/([^/]+)\/chat$/);
+      if (chatMatch && method === 'POST') {
+        const id = chatMatch[1]!;
+        const existing = get(id);
+        if (!existing) return json({ error: 'Not found' }, 404);
+        const body = (await req.json()) as {
+          messages: ChatMessage[];
+          selectedObjectId?: string;
+        };
+        const result = await runAgent(
+          id,
+          body.messages,
+          body.selectedObjectId ?? null,
+        );
+        return json(result);
       }
 
       const match = pathname.match(/^\/api\/canvases\/([^/]+)$/);

@@ -112,6 +112,7 @@ export default [
       },
       globals: {
         document: 'readonly',
+        fetch: 'readonly',
         HTMLElement: 'readonly',
         KeyboardEvent: 'readonly',
         PointerEvent: 'readonly',

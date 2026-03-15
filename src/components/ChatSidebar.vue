@@ -9,7 +9,20 @@
       >
         <div :class="msg.role === 'user' ? 'bubble' : 'plain'">
           {{ msg.text }}
+          <button
+            v-if="msg.error && i === messages.length - 1"
+            class="retry-btn"
+            @click="retry"
+          >
+            Retry
+          </button>
         </div>
+      </div>
+      <div
+        v-if="loading"
+        class="message assistant"
+      >
+        <div class="plain loading-indicator">Thinking…</div>
       </div>
     </div>
     <form
@@ -37,60 +50,77 @@ import useCanvas from '@/composables/useCanvas';
 interface Message {
   role: 'user' | 'assistant';
   text: string;
+  error?: boolean;
 }
 
-const { addObject, canvas } = useCanvas();
+const { canvas, selectedObjectId, fetchCanvas } = useCanvas();
 
 const messages = ref<Message[]>([]);
 const input = ref('');
 const loading = ref(false);
 
-const MOCK_RESPONSES = [
-  "Here's a hero section with a large heading and a call-to-action button.",
-  "I've created a card grid layout with three feature cards.",
-  'Done! Added a navigation bar with logo and links.',
-  "I've updated the design with a footer section.",
-  "Here's a testimonial carousel layout.",
-];
-
-const MOCK_HTML = [
-  '<div style="padding:24px;text-align:center"><h1 style="font-size:32px;margin-bottom:16px">Welcome</h1><button style="padding:10px 24px;background:#007aff;color:#fff;border:none;border-radius:8px;font-size:16px">Get Started</button></div>',
-  '<div style="display:flex;gap:12px;padding:16px"><div style="flex:1;padding:16px;border:1px solid #e0e0e0;border-radius:8px"><h3>Feature 1</h3><p>Description</p></div><div style="flex:1;padding:16px;border:1px solid #e0e0e0;border-radius:8px"><h3>Feature 2</h3><p>Description</p></div><div style="flex:1;padding:16px;border:1px solid #e0e0e0;border-radius:8px"><h3>Feature 3</h3><p>Description</p></div></div>',
-  '<nav style="display:flex;align-items:center;justify-content:space-between;padding:12px 24px;border-bottom:1px solid #e0e0e0"><strong>Logo</strong><div style="display:flex;gap:16px"><a href="#">Home</a><a href="#">About</a><a href="#">Contact</a></div></nav>',
-  '<footer style="padding:24px;background:#333;color:#fff;text-align:center"><p>&copy; 2026 Company</p></footer>',
-  '<div style="padding:24px;text-align:center;background:#f9f9f9;border-radius:8px"><p style="font-style:italic;font-size:18px">"This product changed my life!"</p><p style="color:#666;margin-top:8px">— Happy Customer</p></div>',
-];
-
-function mockResponse(): { text: string; html: string } {
-  const index = Math.floor(Math.random() * MOCK_RESPONSES.length);
-  return { text: MOCK_RESPONSES[index]!, html: MOCK_HTML[index]! };
-}
-
 async function send(): Promise<void> {
   const text = input.value.trim();
   if (!text) return;
+
+  const canvasId = canvas.value?.id;
+  if (!canvasId) return;
 
   messages.value.push({ role: 'user', text });
   input.value = '';
   loading.value = true;
 
-  await new Promise((r) => setTimeout(r, 800 + Math.random() * 1200));
+  try {
+    const res = await fetch(`/api/canvases/${canvasId}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: messages.value.filter((m) => !m.error),
+        selectedObjectId: selectedObjectId.value,
+      }),
+    });
 
-  const response = mockResponse();
-  messages.value.push({ role: 'assistant', text: response.text });
+    if (!res.ok) {
+      throw new Error(`Server error: ${res.status}`);
+    }
 
-  const objectCount = canvas.value?.objects.length ?? 0;
-  addObject({
-    title: text,
-    content: response.html,
-    x: 100 + objectCount * 50,
-    y: 100 + objectCount * 50,
-    width: 400,
-    height: 300,
-    zIndex: objectCount + 1,
-  });
+    const data = (await res.json()) as { reply: string };
+    messages.value.push({ role: 'assistant', text: data.reply });
+    await fetchCanvas(canvasId);
+  } catch (e) {
+    const errorMsg = e instanceof Error ? e.message : 'Something went wrong';
+    messages.value.push({
+      role: 'assistant',
+      text: `Error: ${errorMsg}`,
+      error: true,
+    });
+  } finally {
+    loading.value = false;
+  }
+}
 
-  loading.value = false;
+function retry(): void {
+  // Remove the last error message and resend
+  while (
+    messages.value.length > 0 &&
+    messages.value[messages.value.length - 1]!.error
+  ) {
+    messages.value.pop();
+  }
+  if (messages.value.length === 0) return;
+  let lastUserIdx = -1;
+  for (let i = messages.value.length - 1; i >= 0; i--) {
+    if (messages.value[i]!.role === 'user') {
+      lastUserIdx = i;
+      break;
+    }
+  }
+  if (lastUserIdx === -1) return;
+  const lastUserMsg = messages.value[lastUserIdx]!.text;
+  // Remove the last user message — send() will re-add it
+  messages.value.splice(lastUserIdx, 1);
+  input.value = lastUserMsg;
+  void send();
 }
 </script>
 
@@ -189,5 +219,26 @@ async function send(): Promise<void> {
 .composer button:not(:disabled):hover {
   background: #f0f0f0;
   color: #333;
+}
+
+.retry-btn {
+  display: block;
+  margin-top: 6px;
+  padding: 4px 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  background: #fff;
+  color: #333;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.retry-btn:hover {
+  background: #f0f0f0;
+}
+
+.loading-indicator {
+  color: #999;
+  font-style: italic;
 }
 </style>
