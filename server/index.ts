@@ -1,4 +1,4 @@
-import { runAgent } from './agent';
+import { runAgentStream } from './agent';
 import type { ChatMessage } from './agent';
 import {
   ensureDir,
@@ -24,6 +24,7 @@ function json(data: unknown, status = 200): Response {
 
 Bun.serve({
   port: PORT,
+  idleTimeout: 255,
   async fetch(req) {
     const url = new URL(req.url);
     const { pathname } = url;
@@ -70,13 +71,37 @@ Bun.serve({
           selectedObjectId?: string;
           selectedElementSelector?: string;
         };
-        const result = await runAgent(
-          id,
-          body.messages,
-          body.selectedObjectId ?? null,
-          body.selectedElementSelector ?? null,
-        );
-        return json(result);
+        const stream = new ReadableStream({
+          async start(controller) {
+            const encoder = new TextEncoder();
+            const send = (data: unknown): void => {
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify(data)}\n\n`),
+              );
+            };
+            try {
+              for await (const event of runAgentStream(
+                id,
+                body.messages,
+                body.selectedObjectId ?? null,
+                body.selectedElementSelector ?? null,
+              )) {
+                send(event);
+              }
+            } catch (e) {
+              const msg = e instanceof Error ? e.message : 'Unknown error';
+              send({ type: 'error', message: msg });
+            }
+            controller.close();
+          },
+        });
+        return new Response(stream, {
+          headers: {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            Connection: 'keep-alive',
+          },
+        });
       }
 
       const match = pathname.match(/^\/api\/canvases\/([^/]+)$/);

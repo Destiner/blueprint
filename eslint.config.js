@@ -120,6 +120,7 @@ export default [
         MouseEvent: 'readonly',
         PointerEvent: 'readonly',
         WheelEvent: 'readonly',
+        TextDecoder: 'readonly',
         setTimeout: 'readonly',
       },
     },

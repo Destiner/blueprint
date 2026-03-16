@@ -38,21 +38,62 @@
         class="message"
         :class="msg.role"
       >
-        <div :class="msg.role === 'user' ? 'bubble' : 'plain'">
-          {{ msg.text }}
-          <button
-            v-if="msg.error && i === messages.length - 1"
-            class="retry-btn"
-            @click="retry"
+        <template v-if="msg.role === 'user'">
+          <div class="bubble">
+            {{ msg.text }}
+          </div>
+        </template>
+        <template v-else>
+          <div
+            v-for="(seg, j) in msg.segments"
+            :key="j"
           >
-            Retry
-          </button>
-        </div>
+            <div
+              v-if="seg.type === 'text'"
+              class="plain"
+            >
+              {{ seg.content }}
+              <button
+                v-if="msg.error && i === messages.length - 1"
+                class="retry-btn"
+                @click="retry"
+              >
+                Retry
+              </button>
+            </div>
+            <div
+              v-else-if="seg.type === 'toolCalls'"
+              class="tool-calls-wrapper"
+            >
+              <div
+                v-for="(call, k) in seg.calls"
+                :key="k"
+                class="tool-call"
+              >
+                <strong>{{ call.label }}</strong>
+                {{ call.detail ? ` ${call.detail}` : '' }}
+              </div>
+            </div>
+          </div>
+        </template>
       </div>
       <div
         v-if="loading"
         class="message assistant"
       >
+        <div
+          v-if="pendingToolCalls.length > 0"
+          class="tool-calls-wrapper"
+        >
+          <div
+            v-for="(call, k) in pendingToolCalls"
+            :key="k"
+            class="tool-call"
+          >
+            <strong>{{ call.label }}</strong>
+            {{ call.detail ? ` ${call.detail}` : '' }}
+          </div>
+        </div>
         <div class="plain loading-indicator">Thinking…</div>
       </div>
     </div>
@@ -77,12 +118,41 @@ import { PhPaperPlaneTilt, PhPlus } from '@phosphor-icons/vue';
 import { computed, ref } from 'vue';
 
 import useCanvas from '@/composables/useCanvas';
+import { describeToolCall } from '@/utils/toolCalls';
 
-interface Message {
-  role: 'user' | 'assistant';
+interface ToolCall {
+  label: string;
+  detail: string;
+  name: string;
+}
+
+interface TextSegment {
+  type: 'text';
+  content: string;
+}
+
+interface ToolCallsSegment {
+  type: 'toolCalls';
+  calls: ToolCall[];
+}
+
+type MessageSegment = TextSegment | ToolCallsSegment;
+
+interface UserMessage {
+  role: 'user';
   text: string;
+  segments?: never;
+  error?: never;
+}
+
+interface AssistantMessage {
+  role: 'assistant';
+  text?: never;
+  segments: MessageSegment[];
   error?: boolean;
 }
+
+type Message = UserMessage | AssistantMessage;
 
 const emit = defineEmits<{
   'new-chat': [];
@@ -95,6 +165,7 @@ const messages = ref<Message[]>([]);
 const input = ref('');
 const loading = ref(false);
 const chatActive = ref(false);
+const pendingToolCalls = ref<ToolCall[]>([]);
 const isEmpty = computed(
   (): boolean =>
     messages.value.length === 0 && !loading.value && !chatActive.value,
@@ -106,7 +177,25 @@ function resetChat(): void {
   messages.value = [];
   input.value = '';
   loading.value = false;
+  pendingToolCalls.value = [];
   emit('new-chat');
+}
+
+function messagesForApi(): Array<{ role: string; text: string }> {
+  return messages.value
+    .filter((m) => {
+      if (m.role === 'assistant' && m.error) return false;
+      return true;
+    })
+    .map((m) => {
+      if (m.role === 'user') {
+        return { role: 'user', text: m.text };
+      }
+      const textParts = m.segments
+        .filter((s): s is TextSegment => s.type === 'text')
+        .map((s) => s.content);
+      return { role: 'assistant', text: textParts.join('\n') };
+    });
 }
 
 async function send(): Promise<void> {
@@ -121,13 +210,14 @@ async function send(): Promise<void> {
   messages.value.push({ role: 'user', text });
   input.value = '';
   loading.value = true;
+  pendingToolCalls.value = [];
 
   try {
     const res = await fetch(`/api/canvases/${canvasId}/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        messages: messages.value.filter((m) => !m.error),
+        messages: messagesForApi(),
         selectedObjectId: selectedObjectId.value,
         selectedElementSelector: selectedElementSelector.value,
       }),
@@ -137,26 +227,92 @@ async function send(): Promise<void> {
       throw new Error(`Server error: ${res.status}`);
     }
 
-    const data = (await res.json()) as { reply: string };
-    messages.value.push({ role: 'assistant', text: data.reply });
+    const reader = res.body?.getReader();
+    if (!reader) throw new Error('No response body');
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+    const toolCalls: ToolCall[] = [];
+    let replyText = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      const parts = buffer.split('\n\n');
+      buffer = parts.pop() || '';
+
+      for (const part of parts) {
+        const dataLine = part.trim();
+        if (!dataLine.startsWith('data: ')) continue;
+        const json = dataLine.slice(6);
+
+        let event: Record<string, unknown>;
+        try {
+          event = JSON.parse(json) as Record<string, unknown>;
+        } catch {
+          continue;
+        }
+
+        if (event.type === 'tool_call') {
+          const name = event.name as string;
+          if (
+            name === 'ToolSearch' ||
+            name === 'mcp__blueprint__get_design_guide'
+          )
+            continue;
+          const params = (event.input as Record<string, unknown>) || {};
+          const desc = describeToolCall(name, params);
+          const call: ToolCall = { ...desc, name };
+          toolCalls.push(call);
+          pendingToolCalls.value = [...toolCalls];
+        } else if (event.type === 'result') {
+          replyText = event.reply as string;
+        } else if (event.type === 'error') {
+          throw new Error(event.message as string);
+        }
+      }
+    }
+
+    const segments: MessageSegment[] = [];
+
+    if (toolCalls.length > 0) {
+      segments.push({
+        type: 'toolCalls',
+        calls: toolCalls,
+      });
+    }
+
+    if (replyText) {
+      segments.push({ type: 'text', content: replyText });
+    }
+
+    if (segments.length === 0) {
+      segments.push({ type: 'text', content: 'Done.' });
+    }
+
+    messages.value.push({ role: 'assistant', segments });
     await fetchCanvas(canvasId);
   } catch (e) {
     const errorMsg = e instanceof Error ? e.message : 'Something went wrong';
     messages.value.push({
       role: 'assistant',
-      text: `Error: ${errorMsg}`,
+      segments: [{ type: 'text', content: `Error: ${errorMsg}` }],
       error: true,
     });
   } finally {
     loading.value = false;
+    pendingToolCalls.value = [];
   }
 }
 
 function retry(): void {
-  // Remove the last error message and resend
   while (
     messages.value.length > 0 &&
-    messages.value[messages.value.length - 1]!.error
+    messages.value[messages.value.length - 1]!.role === 'assistant' &&
+    (messages.value[messages.value.length - 1] as AssistantMessage).error
   ) {
     messages.value.pop();
   }
@@ -169,8 +325,7 @@ function retry(): void {
     }
   }
   if (lastUserIdx === -1) return;
-  const lastUserMsg = messages.value[lastUserIdx]!.text;
-  // Remove the last user message — send() will re-add it
+  const lastUserMsg = (messages.value[lastUserIdx] as UserMessage).text;
   messages.value.splice(lastUserIdx, 1);
   input.value = lastUserMsg;
   void send();
@@ -296,7 +451,10 @@ function retry(): void {
 }
 
 .message.assistant {
+  display: flex;
+  flex-direction: column;
   justify-content: flex-start;
+  gap: 4px;
 }
 
 .bubble {
@@ -317,6 +475,16 @@ function retry(): void {
   color: #333;
   font-size: 14px;
   line-height: 1.4;
+}
+
+.tool-calls-wrapper {
+  margin: 4px 0;
+}
+
+.tool-call {
+  padding: 1px 0;
+  color: #9a9a9a;
+  font-size: 12px;
 }
 
 .composer {

@@ -7,6 +7,24 @@ interface ChatMessage {
   text: string;
 }
 
+interface ToolCallEvent {
+  type: 'tool_call';
+  name: string;
+  input: Record<string, unknown>;
+}
+
+interface ResultEvent {
+  type: 'result';
+  reply: string;
+}
+
+interface ErrorEvent {
+  type: 'error';
+  message: string;
+}
+
+type AgentEvent = ToolCallEvent | ResultEvent | ErrorEvent;
+
 function buildSystemPrompt(
   selectedObjectId: string | null,
   selectedElementSelector: string | null,
@@ -48,17 +66,16 @@ function buildUserPrompt(messages: ChatMessage[]): string {
     .join('\n');
 }
 
-interface AgentResult {
-  reply: string;
-}
-
-async function runAgent(
+async function* runAgentStream(
   canvasId: string,
   messages: ChatMessage[],
   selectedObjectId: string | null = null,
   selectedElementSelector: string | null = null,
-): Promise<AgentResult> {
-  const systemPrompt = buildSystemPrompt(selectedObjectId, selectedElementSelector);
+): AsyncGenerator<AgentEvent> {
+  const systemPrompt = buildSystemPrompt(
+    selectedObjectId,
+    selectedElementSelector,
+  );
   const userPrompt = buildUserPrompt(messages);
 
   const configId = crypto.randomUUID();
@@ -84,8 +101,9 @@ async function runAgent(
       [
         'claude',
         '-p',
+        '--verbose',
         '--output-format',
-        'json',
+        'stream-json',
         '--mcp-config',
         configPath,
         '--allowedTools',
@@ -101,22 +119,87 @@ async function runAgent(
       proc.kill();
     }, TIMEOUT_MS);
 
-    const exitCode = await proc.exited;
+    const reader = proc.stdout.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let resultText = '';
+    const seenToolIds = new Set<string>();
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+
+        let event: Record<string, unknown>;
+        try {
+          event = JSON.parse(trimmed) as Record<string, unknown>;
+        } catch {
+          continue;
+        }
+
+        if (event.type === 'assistant') {
+          const message = event.message as {
+            content?: Array<{
+              type: string;
+              id?: string;
+              name?: string;
+              input?: Record<string, unknown>;
+            }>;
+          } | null;
+          if (message?.content) {
+            for (const block of message.content) {
+              if (block.type === 'tool_use' && block.name && block.id) {
+                if (seenToolIds.has(block.id)) continue;
+                seenToolIds.add(block.id);
+                yield {
+                  type: 'tool_call',
+                  name: block.name,
+                  input: block.input || {},
+                };
+              }
+            }
+          }
+        } else if (event.type === 'result') {
+          resultText = (event.result as string) || '';
+        }
+      }
+    }
+
+    if (buffer.trim()) {
+      try {
+        const event = JSON.parse(buffer.trim()) as Record<string, unknown>;
+        if (event.type === 'result') {
+          resultText = (event.result as string) || '';
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     clearTimeout(timeout);
 
-    const stdout = await new Response(proc.stdout).text();
+    const exitCode = await proc.exited;
     const stderr = await new Response(proc.stderr).text();
 
     if (exitCode !== 0) {
       console.error('Agent stderr:', stderr);
       if (exitCode === null) {
-        throw new Error('Agent timed out');
+        yield { type: 'error', message: 'Agent timed out' };
+        return;
       }
-      throw new Error(`Agent exited with code ${exitCode}`);
+      yield { type: 'error', message: `Agent exited with code ${exitCode}` };
+      return;
     }
 
-    const parsed = JSON.parse(stdout) as { result: string };
-    return { reply: parsed.result };
+    yield { type: 'result', reply: resultText };
   } finally {
     try {
       unlinkSync(configPath);
@@ -126,5 +209,5 @@ async function runAgent(
   }
 }
 
-export { runAgent };
-export type { ChatMessage };
+export { runAgentStream };
+export type { AgentEvent, ChatMessage };
