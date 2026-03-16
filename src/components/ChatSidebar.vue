@@ -22,6 +22,15 @@
     v-else
     class="sidebar"
   >
+    <div class="header">
+      <span class="header-title">Chat</span>
+      <button
+        class="header-btn"
+        @click="resetChat"
+      >
+        <PhPlus :size="16" />
+      </button>
+    </div>
     <div class="messages">
       <div
         v-for="(msg, i) in messages"
@@ -64,7 +73,7 @@
 </template>
 
 <script setup lang="ts">
-import { PhPaperPlaneTilt } from '@phosphor-icons/vue';
+import { PhPaperPlaneTilt, PhPlus } from '@phosphor-icons/vue';
 import { computed, ref } from 'vue';
 
 import useCanvas from '@/composables/useCanvas';
@@ -74,6 +83,10 @@ interface Message {
   text: string;
   error?: boolean;
 }
+
+const emit = defineEmits<{
+  'new-chat': [];
+}>();
 
 const { canvas, selectedObjectId, selectedElementSelector, fetchCanvas } =
   useCanvas();
@@ -86,6 +99,13 @@ const isEmpty = computed(
 );
 
 defineExpose({ isEmpty });
+
+function resetChat(): void {
+  messages.value = [];
+  input.value = '';
+  loading.value = false;
+  emit('new-chat');
+}
 
 async function send(): Promise<void> {
   const text = input.value.trim();
@@ -158,8 +178,8 @@ function retry(): void {
   display: flex;
   align-items: flex-end;
   width: 100%;
-  transition: transform 0.2s ease;
   transform: scale(0.98);
+  transition: transform 0.2s ease;
   border: 1px solid #e0e0e0;
   border-radius: 14px;
   background: #fff;
@@ -220,6 +240,38 @@ function retry(): void {
   border-radius: 24px;
   background: #fff;
   box-shadow: 0 8px 32px rgb(0 0 0 / 12%);
+}
+
+.header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+}
+
+.header-title {
+  color: #999;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.header-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #666;
+  cursor: pointer;
+}
+
+.header-btn:hover {
+  background: #f0f0f0;
+  color: #333;
 }
 
 .messages {
