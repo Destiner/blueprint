@@ -21,12 +21,15 @@
         @resize="(dw, dh, dx, dy) => onResizeObject(obj.id, dw, dh, dx, dy)"
       />
     </InfiniteCanvas>
-    <ChatSidebar class="chat" />
+    <ChatSidebar
+      ref="chatRef"
+      :class="chatRef?.isEmpty ? 'chat-empty' : 'chat'"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue';
+import { type ComponentPublicInstance, onMounted, onUnmounted, ref } from 'vue';
 
 import ChatSidebar from '@/components/ChatSidebar.vue';
 import DesignCard from '@/components/DesignCard.vue';
@@ -48,6 +51,7 @@ const {
   updateCamera,
 } = useCanvas();
 
+const chatRef = ref<ComponentPublicInstance & { isEmpty: boolean }>();
 const currentZoom = ref(1);
 
 function onDeselect(): void {
@@ -136,5 +140,14 @@ onUnmounted(() => {
   right: 16px;
   width: 360px;
   height: calc(100% - 32px);
+}
+
+.chat-empty {
+  position: absolute;
+  right: 0;
+  bottom: 24px;
+  left: 0;
+  width: 280px;
+  margin: 0 auto;
 }
 </style>

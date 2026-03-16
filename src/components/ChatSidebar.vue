@@ -1,5 +1,27 @@
 <template>
-  <aside class="sidebar">
+  <form
+    v-if="isEmpty"
+    class="empty-composer"
+    @submit.prevent="send"
+  >
+    <textarea
+      v-model="input"
+      class="empty-input"
+      placeholder="Describe a design…"
+      rows="1"
+      @keydown.enter.exact.prevent="send"
+    />
+    <button
+      class="empty-send"
+      :disabled="!input.trim()"
+    >
+      <PhPaperPlaneTilt :size="14" />
+    </button>
+  </form>
+  <aside
+    v-else
+    class="sidebar"
+  >
     <div class="messages">
       <div
         v-for="(msg, i) in messages"
@@ -43,7 +65,7 @@
 
 <script setup lang="ts">
 import { PhPaperPlaneTilt } from '@phosphor-icons/vue';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 import useCanvas from '@/composables/useCanvas';
 
@@ -59,6 +81,11 @@ const { canvas, selectedObjectId, selectedElementSelector, fetchCanvas } =
 const messages = ref<Message[]>([]);
 const input = ref('');
 const loading = ref(false);
+const isEmpty = computed(
+  (): boolean => messages.value.length === 0 && !loading.value,
+);
+
+defineExpose({ isEmpty });
 
 async function send(): Promise<void> {
   const text = input.value.trim();
@@ -127,6 +154,63 @@ function retry(): void {
 </script>
 
 <style scoped>
+.empty-composer {
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  transition: transform 0.2s ease;
+  transform: scale(0.98);
+  border: 1px solid #e0e0e0;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 10%);
+}
+
+.empty-composer:hover,
+.empty-composer:focus-within {
+  transform: scale(1);
+}
+
+.empty-input {
+  flex: 1;
+  max-height: calc(1.4em * 5 + 20px);
+  padding: 10px 12px;
+  border: none;
+  border-radius: 14px 0 0 14px;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  resize: none;
+  field-sizing: content;
+}
+
+.empty-send {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: 4px 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #666;
+  cursor: pointer;
+}
+
+.empty-send:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.empty-send:not(:disabled):hover {
+  background: #f0f0f0;
+  color: #333;
+}
+
 .sidebar {
   display: flex;
   flex-direction: column;
