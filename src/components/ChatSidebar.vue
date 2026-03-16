@@ -21,8 +21,14 @@
   <aside
     v-else
     class="sidebar"
+    tabindex="-1"
+    @focusin="onFocusIn"
+    @focusout="onFocusOut"
   >
-    <div class="header">
+    <div
+      v-if="focused"
+      class="header"
+    >
       <span class="header-title">Chat</span>
       <button
         class="header-btn"
@@ -31,7 +37,10 @@
         <PhPlus :size="16" />
       </button>
     </div>
-    <div class="messages">
+    <div
+      ref="messagesEl"
+      class="messages"
+    >
       <div
         v-for="(msg, i) in messages"
         :key="i"
@@ -103,8 +112,7 @@
     >
       <input
         v-model="input"
-        placeholder="Describe a design…"
-        :disabled="loading"
+        :placeholder="messages.length > 0 ? 'Follow up' : 'Describe a design…'"
       />
       <button :disabled="!input.trim() || loading">
         <PhPaperPlaneTilt :size="18" />
@@ -115,7 +123,7 @@
 
 <script setup lang="ts">
 import { PhPaperPlaneTilt, PhPlus } from '@phosphor-icons/vue';
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 
 import useCanvas from '@/composables/useCanvas';
 import { describeToolCall } from '@/utils/toolCalls';
@@ -161,17 +169,35 @@ const emit = defineEmits<{
 const { canvas, selectedObjectId, selectedElementSelector, fetchCanvas } =
   useCanvas();
 
+const messagesEl = ref<HTMLElement>();
 const messages = ref<Message[]>([]);
 const input = ref('');
 const loading = ref(false);
 const chatActive = ref(false);
 const pendingToolCalls = ref<ToolCall[]>([]);
+const focused = ref(true);
 const isEmpty = computed(
   (): boolean =>
     messages.value.length === 0 && !loading.value && !chatActive.value,
 );
+const collapsed = computed((): boolean => !isEmpty.value && !focused.value);
 
-defineExpose({ isEmpty });
+defineExpose({ isEmpty, collapsed });
+
+function onFocusIn(): void {
+  focused.value = true;
+}
+
+function onFocusOut(e: FocusEvent): void {
+  const aside = e.currentTarget as HTMLElement;
+  if (e.relatedTarget && aside.contains(e.relatedTarget as Node)) return;
+  focused.value = false;
+  void nextTick(() => {
+    if (messagesEl.value) {
+      messagesEl.value.scrollTop = messagesEl.value.scrollHeight;
+    }
+  });
+}
 
 function resetChat(): void {
   messages.value = [];
@@ -395,6 +421,9 @@ function retry(): void {
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+  transition:
+    height 0.25s ease,
+    max-height 0.25s ease;
   border: 1px solid #e0e0e0;
   border-radius: 24px;
   background: #fff;

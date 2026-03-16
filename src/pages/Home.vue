@@ -23,7 +23,13 @@
     </InfiniteCanvas>
     <ChatSidebar
       ref="chatRef"
-      :class="chatRef?.isEmpty ? 'chat-empty' : 'chat'"
+      :class="
+        chatRef?.isEmpty
+          ? 'chat-empty'
+          : chatRef?.collapsed
+            ? 'chat-collapsed'
+            : 'chat'
+      "
     />
   </div>
 </template>
@@ -51,7 +57,9 @@ const {
   updateCamera,
 } = useCanvas();
 
-const chatRef = ref<ComponentPublicInstance & { isEmpty: boolean }>();
+const chatRef = ref<
+  ComponentPublicInstance & { isEmpty: boolean; collapsed: boolean }
+>();
 const currentZoom = ref(1);
 
 function onDeselect(): void {
@@ -136,10 +144,18 @@ onUnmounted(() => {
 
 .chat {
   position: absolute;
-  top: 16px;
   right: 16px;
+  bottom: 16px;
   width: 360px;
   height: calc(100% - 32px);
+}
+
+.chat-collapsed {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  width: 360px;
+  max-height: 200px;
 }
 
 .chat-empty {
