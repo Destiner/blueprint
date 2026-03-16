@@ -94,8 +94,10 @@ const { canvas, selectedObjectId, selectedElementSelector, fetchCanvas } =
 const messages = ref<Message[]>([]);
 const input = ref('');
 const loading = ref(false);
+const chatActive = ref(false);
 const isEmpty = computed(
-  (): boolean => messages.value.length === 0 && !loading.value,
+  (): boolean =>
+    messages.value.length === 0 && !loading.value && !chatActive.value,
 );
 
 defineExpose({ isEmpty });
@@ -110,6 +112,8 @@ function resetChat(): void {
 async function send(): Promise<void> {
   const text = input.value.trim();
   if (!text) return;
+
+  chatActive.value = true;
 
   const canvasId = canvas.value?.id;
   if (!canvasId) return;
