@@ -25,12 +25,18 @@
         @pointerdown.stop="(e: PointerEvent) => onResizeDown(e, dir)"
       />
     </template>
+    <InlineFeedback
+      v-if="selected && selectedEl"
+      :x="feedbackX"
+      :y="feedbackY"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 
+import InlineFeedback from '@/components/InlineFeedback.vue';
 import type { DesignObject } from '@/composables/useCanvas';
 import buildSelectorPath from '@/utils/selectorPath';
 
@@ -62,6 +68,8 @@ const resizeDirections: ResizeDirection[] = [
 ];
 
 const bodyRef = ref<HTMLElement | null>(null);
+const feedbackX = ref(0);
+const feedbackY = ref(0);
 const dragging = ref(false);
 const wasDragged = ref(false);
 const resizing = ref(false);
@@ -188,6 +196,31 @@ function onBodyPointerOut(e: PointerEvent): void {
   }
 }
 
+function getOffsetInCard(
+  el: HTMLElement,
+  card: HTMLElement,
+): { x: number; y: number } {
+  let x = 0;
+  let y = 0;
+  let current: HTMLElement | null = el;
+  while (current && current !== card) {
+    x += current.offsetLeft;
+    y += current.offsetTop;
+    current = current.offsetParent as HTMLElement | null;
+  }
+  return { x, y };
+}
+
+function updateFeedbackPosition(el: Element): void {
+  const card = (el as HTMLElement).closest(
+    '.design-card',
+  ) as HTMLElement | null;
+  if (!card) return;
+  const offset = getOffsetInCard(el as HTMLElement, card);
+  feedbackX.value = offset.x;
+  feedbackY.value = offset.y;
+}
+
 function applySelectionHighlight(selector: string | null): void {
   if (selectedEl.value) {
     (selectedEl.value as HTMLElement).style.outline = '';
@@ -198,6 +231,7 @@ function applySelectionHighlight(selector: string | null): void {
   if (el) {
     (el as HTMLElement).style.outline = '2px dashed #007aff';
     selectedEl.value = el;
+    updateFeedbackPosition(el);
   } else {
     emit('select-element', null);
   }
