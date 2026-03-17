@@ -1,6 +1,7 @@
 import js from '@eslint/js';
 import eslintPluginImportX from 'eslint-plugin-import-x';
 import pluginVue from 'eslint-plugin-vue';
+import globals from 'globals';
 import { configs as tsConfigs, parser as tsParser } from 'typescript-eslint';
 import parserVue from 'vue-eslint-parser';
 
@@ -111,19 +112,7 @@ export default [
         parser: '@typescript-eslint/parser',
       },
       globals: {
-        Array: 'readonly',
-        document: 'readonly',
-        Element: 'readonly',
-        fetch: 'readonly',
-        FocusEvent: 'readonly',
-        HTMLElement: 'readonly',
-        KeyboardEvent: 'readonly',
-        Node: 'readonly',
-        MouseEvent: 'readonly',
-        PointerEvent: 'readonly',
-        WheelEvent: 'readonly',
-        TextDecoder: 'readonly',
-        setTimeout: 'readonly',
+        ...globals.browser,
       },
     },
   },
