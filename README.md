@@ -4,6 +4,10 @@
 
 AI-driven design tool where a coding agent generates HTML-based designs from user prompts. Users curate and iterate via a chat interface on an infinite canvas.
 
+Inspired by [Paper](https://paper.design).
+
+https://github.com/user-attachments/assets/f356d017-dd43-40d9-abd9-5b432e969635
+
 ## Prerequisites
 
 - [Bun](https://bun.sh/)
